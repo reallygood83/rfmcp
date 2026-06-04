@@ -85,6 +85,11 @@ After that, use prompts like:
 /rf 셀트리온 분석해줘
 ```
 
+The `/rf` command is tuned to produce data-backed Korean reports, not just a
+metric dump. It should connect revenue, profitability, cash flow, financial
+safety, valuation, and Richgo percentile signals into a concrete story that is
+easy to understand.
+
 ## Optional auth
 
 Public endpoints work without auth. If you legitimately need login-only Richgo features, set your own cookie:
