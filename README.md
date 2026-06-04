@@ -64,9 +64,26 @@ npm start
 ## Example Prompts
 
 - `아이티센글로벌 리치고 데이터로 분석해줘`
+- `/rf 셀트리온 분석해줘`
 - `삼성전자와 SK하이닉스 리치고 상세 지표 비교해줘`
 - `리치고 저평가 total 상위 10개 보여줘`
 - `AI 랭킹 상위 종목을 요약해줘`
+
+## Optional Slash Command
+
+This repo includes a Claude-style slash command template at `commands/rf.md`.
+Install it as `/rf` with:
+
+```bash
+mkdir -p ~/.claude/commands
+cp commands/rf.md ~/.claude/commands/rf.md
+```
+
+After that, use prompts like:
+
+```text
+/rf 셀트리온 분석해줘
+```
 
 ## Optional auth
 
