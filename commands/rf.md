@@ -12,6 +12,11 @@ Examples:
 - `/rf 068270 분석`
 - `/rf 저평가 total 상위 10개`
 - `/rf AI 랭킹 상위 종목 요약`
+- `/rf 500만원 포트폴리오`
+- `/rf 초보자용 포트폴리오 마법사`
+- `/rf 오늘 뭐가 제일 좋아?`
+- `/rf 나는 잘 모르니까 질문하면서 300만원 투자 전략 만들어줘`
+- `/rf 이 결과를 Obsidian 볼트에 저장해줘`
 
 ## Workflow
 
@@ -19,12 +24,21 @@ Examples:
 2. For a single stock, call `richgo_search_stock` first when the input is a name.
 3. If the name is ambiguous, show candidates briefly and choose the most likely main listed company when the user clearly meant it. For example, "셀트리온" usually means `068270` on KOSPI, not `068760` 셀트리온제약.
 4. For analysis, call `richgo_analyze_stock` with the resolved ticker and use `richgo_get_stock_detail` when richer trend, score, or health data is needed.
-5. For screens, use the matching tool:
+5. Route natural language generously:
+   - "뭐가 좋아?", "오늘의 추천", "투자 매력", "컨센서스", "상위 종목" -> `richgo_get_consensus_picks`
+   - "500만원", "예산", "포트폴리오", "몇 주", "투자 전략" -> `richgo_build_portfolio`
+   - "초보자", "질문하면서", "마법사", "잘 모르겠어" -> `richgo_guided_portfolio`
+   - "저장", "Obsidian", "볼트", "노트" -> `richgo_save_obsidian_report` only if a vault path is provided or privately configured
+6. For screens, use the matching tool:
    - `richgo_get_undervalued`
    - `richgo_get_ai_rankings`
    - `richgo_get_curation`
    - `richgo_get_scores`
-6. Answer in Korean unless the user asks otherwise.
+7. For "오늘의 추천", "투자 매력", or "컨센서스" requests, prefer `richgo_get_consensus_picks`.
+8. For budget-based portfolio requests, prefer `richgo_build_portfolio`.
+9. For beginner wizard requests, prefer `richgo_guided_portfolio` so the client can ask for budget/risk profile through form elicitation when supported.
+10. For Obsidian saves, use `richgo_save_obsidian_report` only when the user provides `vaultPath` or the local private env var `RICHGO_OBSIDIAN_VAULT_PATH` is configured. Never invent or hardcode a personal vault path.
+11. Answer in Korean unless the user asks otherwise.
 
 ## Output
 

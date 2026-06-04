@@ -3,13 +3,18 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import {
+  buildPortfolio,
   getStockDetail,
+  getConsensusPicks,
+  portfolioToMarkdown,
   publicApi,
   resolveTicker,
   richgoGet,
+  savePortfolioReport,
   searchStock,
   serviceCatalog,
   summarizeStockDetail,
+  type RiskProfile,
 } from "./richgo.js";
 
 const server = new McpServer({
@@ -274,6 +279,217 @@ server.registerTool(
     }),
   },
   async ({ path, params }) => jsonText(withNotice(await publicApi(path, params))),
+);
+
+server.registerTool(
+  "richgo_get_consensus_picks",
+  {
+    title: "Pick attractive stocks from Richgo consensus signals",
+    description:
+      "Use this when the user asks in natural language for today's attractive stocks, best Korean stocks, Richgo recommendations, 투자 매력 높은 종목, 오늘의 추천, 컨센서스 픽, 저평가+AI 랭킹 종합, or '뭐가 좋아?'. It synthesizes Richgo scores, undervalued tabs, gap signals, and AI rankings into one ranked candidate list.",
+    inputSchema: z.object({
+      market: z.enum(["all", "kospi", "kosdaq", "us"]).default("all"),
+      riskProfile: z.enum(["conservative", "balanced", "aggressive"]).default("balanced"),
+      limit: z.number().int().min(1).max(50).default(10),
+      includePreferred: z.boolean().default(false),
+    }),
+  },
+  async ({ market, riskProfile, limit, includePreferred }) =>
+    jsonText(withNotice(await getConsensusPicks({ market, riskProfile, limit, includePreferred }))),
+);
+
+server.registerTool(
+  "richgo_build_portfolio",
+  {
+    title: "Build a budget-based Richgo stock portfolio",
+    description:
+      "Use this when the user says things like '500만원 투자 전략 짜줘', '예산으로 포트폴리오 만들어줘', '몇 주씩 살까?', '초보자 포트폴리오', or asks for a KRW budget-based strategy. It builds an integer-share portfolio from Richgo consensus signals for a budget, risk profile, and position constraints.",
+    inputSchema: z.object({
+      budget: z.number().positive().default(5_000_000).describe("Portfolio budget in KRW or the selected market currency."),
+      riskProfile: z.enum(["conservative", "balanced", "aggressive"]).default("balanced"),
+      market: z.enum(["all", "kospi", "kosdaq", "us"]).default("all"),
+      maxStocks: z.number().int().min(1).max(10).default(3),
+      maxPositionPct: z.number().min(10).max(100).optional(),
+      includePreferred: z.boolean().default(false),
+      markdown: z.boolean().default(false).describe("Also include an Obsidian-ready Markdown report string."),
+    }),
+  },
+  async ({ budget, riskProfile, market, maxStocks, maxPositionPct, includePreferred, markdown }) => {
+    const portfolio = await buildPortfolio({
+      budget,
+      riskProfile,
+      market,
+      maxStocks,
+      maxPositionPct,
+      includePreferred,
+    });
+    return jsonText(
+      withNotice({
+        ...portfolio,
+        markdown: markdown ? portfolioToMarkdown(portfolio) : undefined,
+      }),
+    );
+  },
+);
+
+server.registerTool(
+  "richgo_save_obsidian_report",
+  {
+    title: "Save a Richgo portfolio report to a user-provided Obsidian vault",
+    description:
+      "Use this when the user asks to save a Richgo report to Obsidian, a vault, or a note. It builds a portfolio report and saves it inside a user-provided Obsidian vault path. No personal vault path is hardcoded; provide vaultPath or set RICHGO_OBSIDIAN_VAULT_PATH locally.",
+    inputSchema: z.object({
+      budget: z.number().positive().default(5_000_000),
+      riskProfile: z.enum(["conservative", "balanced", "aggressive"]).default("balanced"),
+      market: z.enum(["all", "kospi", "kosdaq", "us"]).default("all"),
+      maxStocks: z.number().int().min(1).max(10).default(3),
+      maxPositionPct: z.number().min(10).max(100).optional(),
+      includePreferred: z.boolean().default(false),
+      vaultPath: z
+        .string()
+        .optional()
+        .describe("Absolute local Obsidian vault path. Omit only when RICHGO_OBSIDIAN_VAULT_PATH is set."),
+      noteDir: z.string().default("Richgo").describe("Folder inside the vault. Defaults to a generic Richgo folder."),
+      title: z.string().default("리치고 파이낸스 포트폴리오"),
+    }),
+  },
+  async ({ budget, riskProfile, market, maxStocks, maxPositionPct, includePreferred, vaultPath, noteDir, title }) => {
+    const portfolio = await buildPortfolio({
+      budget,
+      riskProfile,
+      market,
+      maxStocks,
+      maxPositionPct,
+      includePreferred,
+    });
+    const saved = await savePortfolioReport({ portfolio, vaultPath, noteDir, title });
+    return jsonText(
+      withNotice({
+        saved,
+        portfolio,
+      }),
+    );
+  },
+);
+
+server.registerTool(
+  "richgo_guided_portfolio",
+  {
+    title: "Ask beginner-friendly questions before building a Richgo portfolio",
+    description:
+      "Use this when the user says '초보자용으로 해줘', '질문하면서 도와줘', '마법사 시작', '잘 모르겠으니 물어봐줘', or asks for AskUserQuestion/form-style guidance. It uses MCP form elicitation when the client supports it, then builds and optionally saves a Richgo portfolio report.",
+    inputSchema: z.object({
+      useElicitation: z.boolean().default(true),
+    }),
+  },
+  async ({ useElicitation }) => {
+    if (!useElicitation) {
+      return jsonText(
+        withNotice({
+          status: "needs_input",
+          message:
+            "Call richgo_build_portfolio with budget, riskProfile, and maxStocks. To save a note, call richgo_save_obsidian_report with vaultPath or set RICHGO_OBSIDIAN_VAULT_PATH locally.",
+          suggestedDefaults: {
+            budget: 5_000_000,
+            riskProfile: "balanced",
+            market: "all",
+            maxStocks: 3,
+            saveToObsidian: false,
+          },
+        }),
+      );
+    }
+
+    let content: Record<string, unknown>;
+    try {
+      const result = await server.server.elicitInput({
+        mode: "form",
+        message: "리치고 포트폴리오를 만들기 위한 기본 조건을 선택해 주세요.",
+        requestedSchema: {
+          type: "object",
+          properties: {
+            budget: {
+              type: "number",
+              title: "투자 예산",
+              description: "예: 5000000",
+              minimum: 100000,
+              default: 5000000,
+            },
+            riskProfile: {
+              type: "string",
+              title: "투자 성향",
+              description: "보수형은 건강도/대형주, 공격형은 괴리율/회복 가능성 가중치가 커집니다.",
+              oneOf: [
+                { const: "balanced", title: "중립형" },
+                { const: "conservative", title: "보수형" },
+                { const: "aggressive", title: "공격형" },
+              ],
+              default: "balanced",
+            },
+            maxStocks: {
+              type: "number",
+              title: "종목 수",
+              minimum: 1,
+              maximum: 10,
+              default: 3,
+            },
+            saveToObsidian: {
+              type: "boolean",
+              title: "Obsidian 저장",
+              description: "저장하려면 다음 단계에서 vaultPath 또는 로컬 환경변수가 필요합니다.",
+              default: false,
+            },
+            vaultPath: {
+              type: "string",
+              title: "Obsidian 볼트 경로",
+              description: "선택 사항. 코드에는 저장되지 않습니다.",
+            },
+            noteDir: {
+              type: "string",
+              title: "볼트 안 폴더",
+              default: "Richgo",
+            },
+          },
+          required: ["budget", "riskProfile", "maxStocks"],
+        },
+      });
+
+      if (result.action !== "accept" || !result.content) {
+        return jsonText(withNotice({ status: "cancelled", message: "포트폴리오 생성을 취소했습니다." }));
+      }
+      content = result.content as Record<string, unknown>;
+    } catch (error) {
+      return jsonText(
+        withNotice({
+          status: "elicitation_unavailable",
+          message:
+            "현재 MCP 클라이언트가 form elicitation을 지원하지 않습니다. richgo_build_portfolio 또는 richgo_save_obsidian_report를 직접 호출해 주세요.",
+          suggestedDefaults: {
+            budget: 5_000_000,
+            riskProfile: "balanced",
+            market: "all",
+            maxStocks: 3,
+          },
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+
+    const budget = Number(content.budget ?? 5_000_000);
+    const riskProfile = String(content.riskProfile ?? "balanced") as RiskProfile;
+    const maxStocks = Number(content.maxStocks ?? 3);
+    const saveToObsidian = Boolean(content.saveToObsidian);
+    const vaultPath = typeof content.vaultPath === "string" && content.vaultPath.trim() ? content.vaultPath : undefined;
+    const noteDir = typeof content.noteDir === "string" && content.noteDir.trim() ? content.noteDir : "Richgo";
+    const portfolio = await buildPortfolio({ budget, riskProfile, maxStocks });
+
+    if (!saveToObsidian) {
+      return jsonText(withNotice({ status: "built", portfolio, markdown: portfolioToMarkdown(portfolio) }));
+    }
+
+    const saved = await savePortfolioReport({ portfolio, vaultPath, noteDir });
+    return jsonText(withNotice({ status: "saved", saved, portfolio }));
+  },
 );
 
 async function main() {
