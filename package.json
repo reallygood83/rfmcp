@@ -1,0 +1,39 @@
+{
+  "name": "richgo-finance-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for public Richgo Finance data",
+  "main": "dist/index.js",
+  "bin": {
+    "richgo-finance-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "richgo",
+    "finance",
+    "korean-stocks",
+    "stocks"
+  ],
+  "author": "reallygood83",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
