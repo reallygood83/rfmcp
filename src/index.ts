@@ -250,6 +250,178 @@ server.registerTool(
 );
 
 server.registerTool(
+  "richgo_get_exports_overview",
+  {
+    title: "Get Richgo Korea export overview",
+    description:
+      "Fetch the refreshed Richgo Korea export overview. Use for 한국 수출 데이터, export-driven investment ideas, export/import/trade-balance history, sector-to-stock export mappings, and export/employment momentum quadrants.",
+    inputSchema: z.object({}),
+  },
+  async () => jsonText(withNotice(await richgoGet("/api/exports/overview"))),
+);
+
+server.registerTool(
+  "richgo_get_exports_nations",
+  {
+    title: "Get Richgo export nations data",
+    description:
+      "Fetch country-level Korea export/import series from Richgo's export section, including top nation trade balances and recent monthly values.",
+    inputSchema: z.object({}),
+  },
+  async () => jsonText(withNotice(await richgoGet("/api/exports/nations"))),
+);
+
+server.registerTool(
+  "richgo_get_exports_region_ranking",
+  {
+    title: "Get Richgo export region ranking",
+    description:
+      "Fetch regional export ranking data from Richgo's Korea export section, including local export totals and change rates.",
+    inputSchema: z.object({}),
+  },
+  async () => jsonText(withNotice(await richgoGet("/api/exports/region-ranking"))),
+);
+
+server.registerTool(
+  "richgo_get_market_ticker",
+  {
+    title: "Get Richgo market ticker snapshot",
+    description:
+      "Fetch headline market ticker values from the refreshed Richgo start/market page, such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices.",
+    inputSchema: z.object({}),
+  },
+  async () => jsonText(withNotice(await richgoGet("/api/market/ticker"))),
+);
+
+const marketSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{1,32}$/)
+  .default("kospi")
+  .describe("Market key accepted by Richgo, commonly kospi or kosdaq.");
+
+server.registerTool(
+  "richgo_get_market_score_history",
+  {
+    title: "Get Richgo market score history",
+    description:
+      "Fetch Richgo market environment score history for the market page. Useful for 시장 위험도, 환경 점수, and market timing context.",
+    inputSchema: z.object({
+      market: marketSchema,
+      timeframe: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).default("W").describe("Timeframe accepted by Richgo, e.g. D, W, M."),
+    }),
+  },
+  async ({ market, timeframe }) => jsonText(withNotice(await richgoGet(`/api/market/${market}/score-history`, { timeframe }))),
+);
+
+server.registerTool(
+  "richgo_get_market_investor_trend",
+  {
+    title: "Get Richgo market investor trend",
+    description:
+      "Fetch investor flow trend from Richgo's market page. Use for 수급 현황, 외국인/기관/연기금/개인 누적 수급, and market participation analysis.",
+    inputSchema: z.object({
+      market: marketSchema,
+      period: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).default("6m").describe("Period accepted by Richgo, commonly 1m, 3m, 6m, or 1y."),
+    }),
+  },
+  async ({ market, period }) => jsonText(withNotice(await richgoGet(`/api/market/${market}/investor-trend`, { period }))),
+);
+
+server.registerTool(
+  "richgo_get_market_valuation_history",
+  {
+    title: "Get Richgo market valuation history",
+    description:
+      "Fetch market valuation history from Richgo, such as PER or PBR series. Useful for market dashboard valuation bands and timing analysis.",
+    inputSchema: z.object({
+      market: marketSchema,
+      type: z.enum(["per", "pbr"]).default("per"),
+      freq: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).default("W"),
+      from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).default("2019-01-01"),
+      mode: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/).default("forward"),
+    }),
+  },
+  async ({ market, type, freq, from, mode }) =>
+    jsonText(withNotice(await richgoGet(`/api/market/${market}/valuation-history`, { type, freq, from, mode }))),
+);
+
+server.registerTool(
+  "richgo_get_market_seasonality",
+  {
+    title: "Get Richgo market seasonality",
+    description:
+      "Fetch Richgo seasonality distribution and trajectory. Use for 계절성 점수, 월별 통계, Halloween effect style context, and current-year market comparison.",
+    inputSchema: z.object({
+      market: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/).default("kospi"),
+      ref: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Reference date, YYYY-MM-DD. Defaults to Richgo's server-side latest reference when omitted."),
+      mode: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/).default("month").describe("Mode accepted by Richgo, e.g. month or year."),
+    }),
+  },
+  async ({ market, ref, mode }) => jsonText(withNotice(await richgoGet("/api/market/seasonality", { market, ref, mode }))),
+);
+
+server.registerTool(
+  "richgo_get_market_global_compare",
+  {
+    title: "Get Richgo global market comparison",
+    description:
+      "Fetch global market comparison trajectories used by the refreshed Richgo market dashboard. Useful for comparing KOSPI with US and global markets.",
+    inputSchema: z.object({
+      granularity: z.string().regex(/^[A-Za-z0-9_-]{1,32}$/).default("yearly"),
+      ref: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Reference date, YYYY-MM-DD."),
+    }),
+  },
+  async ({ granularity, ref }) => jsonText(withNotice(await richgoGet("/api/market/global-compare", { granularity, ref }))),
+);
+
+server.registerTool(
+  "richgo_get_market_dashboard",
+  {
+    title: "Get refreshed Richgo market dashboard bundle",
+    description:
+      "Fetch a compact bundle of the new Richgo start/market page data: market ticker, score history, investor trend, valuation history, seasonality, and global comparison.",
+    inputSchema: z.object({
+      market: marketSchema,
+      timeframe: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).default("W"),
+      period: z.string().regex(/^[A-Za-z0-9_-]{1,16}$/).default("6m"),
+      ref: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }),
+  },
+  async ({ market, timeframe, period, ref }) => {
+    const [ticker, scoreHistory, investorTrend, valuationHistory, seasonality, globalCompare] = await Promise.all([
+      richgoGet("/api/market/ticker"),
+      richgoGet(`/api/market/${market}/score-history`, { timeframe }),
+      richgoGet(`/api/market/${market}/investor-trend`, { period }),
+      richgoGet(`/api/market/${market}/valuation-history`, { type: "per", freq: timeframe, from: "2019-01-01", mode: "forward" }),
+      richgoGet("/api/market/seasonality", { market, ref, mode: "month" }),
+      richgoGet("/api/market/global-compare", { granularity: "yearly", ref }),
+    ]);
+    return jsonText(
+      withNotice({
+        generatedAt: new Date().toISOString(),
+        market,
+        sources: {
+          ticker: ticker.url,
+          scoreHistory: scoreHistory.url,
+          investorTrend: investorTrend.url,
+          valuationHistory: valuationHistory.url,
+          seasonality: seasonality.url,
+          globalCompare: globalCompare.url,
+        },
+        data: {
+          ticker: ticker.data,
+          scoreHistory: scoreHistory.data,
+          investorTrend: investorTrend.data,
+          valuationHistory: valuationHistory.data,
+          seasonality: seasonality.data,
+          globalCompare: globalCompare.data,
+        },
+      }),
+    );
+  },
+);
+
+server.registerTool(
   "richgo_get_market_api",
   {
     title: "Get Richgo market API path",

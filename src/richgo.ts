@@ -152,10 +152,72 @@ export const serviceCatalog = {
       notes: "Special signal/breakout API. Some type values can return empty result sets.",
     },
     {
+      service: "exports_overview",
+      endpoint: "/api/exports/overview",
+      tool: "richgo_get_exports_overview",
+      notes:
+        "Korea export overview: monthly export/import/trade balance history, FX snapshot, sector-to-ticker mappings, and export/employment momentum quadrants.",
+    },
+    {
+      service: "exports_nations",
+      endpoint: "/api/exports/nations",
+      tool: "richgo_get_exports_nations",
+      notes: "Top country export/import series and current trade balances.",
+    },
+    {
+      service: "exports_region_ranking",
+      endpoint: "/api/exports/region-ranking",
+      tool: "richgo_get_exports_region_ranking",
+      notes: "Regional export rankings and change rates used by the Korea export data section.",
+    },
+    {
+      service: "market_ticker",
+      endpoint: "/api/market/ticker",
+      tool: "richgo_get_market_ticker",
+      notes: "Headline market ticker values such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices.",
+    },
+    {
+      service: "market_score_history",
+      endpoint: "/api/market/{market}/score-history",
+      tool: "richgo_get_market_score_history",
+      notes: "Market environment score time series for markets such as kospi and kosdaq.",
+    },
+    {
+      service: "market_investor_trend",
+      endpoint: "/api/market/{market}/investor-trend",
+      tool: "richgo_get_market_investor_trend",
+      notes: "Investor flow trend by foreign, institution, financial investment, pension, trust, and individual groups.",
+    },
+    {
+      service: "market_valuation_history",
+      endpoint: "/api/market/{market}/valuation-history",
+      tool: "richgo_get_market_valuation_history",
+      notes: "Market valuation history such as PER and PBR by frequency and valuation mode.",
+    },
+    {
+      service: "market_seasonality",
+      endpoint: "/api/market/seasonality",
+      tool: "richgo_get_market_seasonality",
+      notes: "Seasonality distribution and current-year trajectory for a selected market and reference date.",
+    },
+    {
+      service: "market_global_compare",
+      endpoint: "/api/market/global-compare",
+      tool: "richgo_get_market_global_compare",
+      notes: "Global market comparison trajectories used by the refreshed market dashboard.",
+    },
+    {
+      service: "market_dashboard",
+      endpoint: "/api/market/ticker + /api/market/*",
+      tool: "richgo_get_market_dashboard",
+      notes:
+        "Convenience bundle for the refreshed Richgo start/market page: ticker, score history, investor trend, valuation history, seasonality, and global comparison.",
+    },
+    {
       service: "market_api",
       endpoint: "/api/market/{path}",
       tool: "richgo_get_market_api",
-      notes: "Generic wrapper for discovered public market endpoints, such as KR/combined-score when available.",
+      notes: "Generic wrapper for discovered public market endpoints not yet promoted to a first-class tool.",
     },
     {
       service: "raw_public_api",

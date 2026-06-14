@@ -4,8 +4,8 @@ Model Context Protocol (MCP) server for public data exposed by
 [`finance.richgo.ai`](https://finance.richgo.ai).
 
 It lets MCP clients search Korean stocks, fetch Richgo stock detail data, and
-use Richgo's ranking, undervaluation, AI ranking, and curation screens from an
-assistant.
+use Richgo's ranking, undervaluation, AI ranking, curation, refreshed market
+dashboard, and Korea export-data screens from an assistant.
 
 > This project only calls public Richgo Finance endpoints by default. It does
 > not bypass authentication or scrape private account data.
@@ -20,6 +20,16 @@ assistant.
 - `richgo_get_ai_rankings`: AI ranking tab.
 - `richgo_get_curation`: curated screener buckets.
 - `richgo_get_breakout`: breakout/special signal endpoint.
+- `richgo_get_exports_overview`: Korea export overview, monthly export/import/trade balance history, sector-stock mappings, and export/employment momentum.
+- `richgo_get_exports_nations`: country-level export/import series and trade balances.
+- `richgo_get_exports_region_ranking`: regional export rankings and change rates.
+- `richgo_get_market_ticker`: headline market ticker snapshot.
+- `richgo_get_market_score_history`: market environment score history.
+- `richgo_get_market_investor_trend`: foreign/institution/pension/individual investor flow trends.
+- `richgo_get_market_valuation_history`: market PER/PBR valuation history.
+- `richgo_get_market_seasonality`: market seasonality distribution and trajectory.
+- `richgo_get_market_global_compare`: global market comparison trajectories.
+- `richgo_get_market_dashboard`: bundled refreshed start/market page data.
 - `richgo_get_market_api`: generic `/api/market/...` wrapper.
 - `richgo_get_public_api`: constrained generic `/api/...` wrapper.
 - `richgo_get_consensus_picks`: merge Richgo scores, undervaluation, gap, and AI rankings into one ranked candidate list.
@@ -74,6 +84,9 @@ You do not need to know the MCP tool names. Ask naturally:
 - `삼성전자와 SK하이닉스 리치고 상세 지표 비교해줘`
 - `리치고 저평가 total 상위 10개 보여줘`
 - `AI 랭킹 상위 종목을 요약해줘`
+- `리치고 시작페이지에 새로 생긴 시장 현황 데이터를 요약해줘`
+- `한국 수출 데이터 기준으로 섹터와 관련 종목을 뽑아줘`
+- `외국인과 기관 수급 흐름을 리치고 시장 데이터로 보여줘`
 - `리치고 컨센서스 기준으로 오늘 투자 매력 높은 종목 10개 뽑아줘`
 - `500만원 중립형 포트폴리오 만들어줘`
 - `초보자용 리치고 포트폴리오 마법사 시작해줘`
@@ -91,6 +104,8 @@ intended natural-language routes:
 | --- | --- | --- |
 | `삼성전자 분석해줘`, `005930 리치고로 봐줘` | `richgo_analyze_stock` | Resolves the stock and returns compact Richgo detail. |
 | `저평가 상위 10개`, `AI 랭킹 보여줘` | `richgo_get_undervalued` / `richgo_get_ai_rankings` | Returns the requested screen. |
+| `수출 데이터로 투자 전략`, `한국 수출 데이터 보여줘` | `richgo_get_exports_overview` / `richgo_get_exports_nations` | Returns export/import/trade-balance history and sector-stock export mappings. |
+| `시장 현황`, `시장 위험도`, `계절성`, `수급 흐름` | `richgo_get_market_dashboard` / market-specific tools | Returns the refreshed Richgo start/market page data bundle or focused market series. |
 | `오늘 투자 매력 높은 종목`, `뭐가 좋아?`, `컨센서스 픽` | `richgo_get_consensus_picks` | Combines scores, undervaluation, gap, and AI ranking into one candidate list. |
 | `500만원 포트폴리오`, `몇 주씩 살까?`, `예산으로 전략 짜줘` | `richgo_build_portfolio` | Builds an integer-share portfolio with cash balance and risks. |
 | `초보자용`, `질문하면서 도와줘`, `마법사 시작` | `richgo_guided_portfolio` | Uses form elicitation when supported, then builds the portfolio. |
