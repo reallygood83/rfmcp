@@ -174,7 +174,8 @@ export const serviceCatalog = {
       service: "market_ticker",
       endpoint: "/api/market/ticker",
       tool: "richgo_get_market_ticker",
-      notes: "Headline market ticker values such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices.",
+      notes:
+        "Headline market ticker values such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices. Adds freshness metadata so stale Korean index dates are not mistaken for current market levels.",
     },
     {
       service: "market_score_history",
@@ -211,7 +212,7 @@ export const serviceCatalog = {
       endpoint: "/api/market/ticker + /api/market/*",
       tool: "richgo_get_market_dashboard",
       notes:
-        "Convenience bundle for the refreshed Richgo start/market page: ticker, score history, investor trend, valuation history, seasonality, and global comparison.",
+        "Convenience bundle for the refreshed Richgo start/market page: ticker, score history, investor trend, valuation history, seasonality, and global comparison. The ticker section includes freshness metadata.",
     },
     {
       service: "market_api",
@@ -324,6 +325,106 @@ export async function richgoGet(path: string, params?: Record<string, string | n
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatUtcDate(date: Date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function previousBusinessDay(date: Date) {
+  const candidate = new Date(date);
+  do {
+    candidate.setUTCDate(candidate.getUTCDate() - 1);
+  } while (candidate.getUTCDay() === 0 || candidate.getUTCDay() === 6);
+  return candidate;
+}
+
+function estimatedLatestKoreaCloseDate(now: Date) {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const day = kst.getUTCDay();
+  const hour = kst.getUTCHours();
+  const todayKst = new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()));
+
+  let latest = new Date(todayKst);
+  if (day === 0) {
+    latest.setUTCDate(latest.getUTCDate() - 2);
+  } else if (day === 6) {
+    latest.setUTCDate(latest.getUTCDate() - 1);
+  } else if (hour < 16) {
+    latest = previousBusinessDay(latest);
+  }
+
+  while (latest.getUTCDay() === 0 || latest.getUTCDay() === 6) {
+    latest.setUTCDate(latest.getUTCDate() - 1);
+  }
+  return formatUtcDate(latest);
+}
+
+function isKoreanIndexTicker(item: Record<string, unknown>) {
+  const indicator = String(item.indicator ?? "");
+  const label = String(item.label ?? "");
+  return indicator === "KOSPI_CLOSE" || indicator === "KOSDAQ_CLOSE" || label === "코스피" || label === "코스닥";
+}
+
+function isoDate(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
+}
+
+export function annotateMarketTickerFreshness(response: RichgoResponse, now = new Date()): RichgoResponse {
+  if (!isRecord(response.data)) return response;
+
+  const items = Array.isArray(response.data.items) ? response.data.items.filter(isRecord) : [];
+  const koreanIndexItems = items.filter(isKoreanIndexTicker);
+  const expectedLatestCloseDate = estimatedLatestKoreaCloseDate(now);
+  const datedKoreanItems = koreanIndexItems
+    .map((item) => ({
+      indicator: String(item.indicator ?? ""),
+      label: String(item.label ?? ""),
+      value: item.value,
+      changePct: item.changePct,
+      date: isoDate(item.date),
+    }))
+    .filter((item) => item.date !== undefined);
+  const staleItems = datedKoreanItems.filter((item) => item.date !== undefined && item.date < expectedLatestCloseDate);
+  const mixedItemDates = Array.from(new Set(items.map((item) => isoDate(item.date)).filter((date): date is string => Boolean(date)))).sort();
+  const warnings: string[] = [];
+
+  if (staleItems.length > 0) {
+    warnings.push(
+      `KOSPI/KOSDAQ ticker date is older than the estimated latest Korea close date (${expectedLatestCloseDate}). Do not present these index values as current market levels without external verification.`,
+    );
+  }
+  if (mixedItemDates.length > 1) {
+    warnings.push(`Ticker payload mixes multiple item dates: ${mixedItemDates.join(", ")}.`);
+  }
+  if (datedKoreanItems.length !== koreanIndexItems.length) {
+    warnings.push("Some Korean index ticker items do not include a YYYY-MM-DD date.");
+  }
+
+  return {
+    ...response,
+    data: {
+      ...response.data,
+      freshness: {
+        checkedAt: new Date(now).toISOString(),
+        timezone: "Asia/Seoul",
+        status: warnings.length > 0 ? "verify_before_current_use" : "fresh_enough_for_latest_close_estimate",
+        expectedLatestKoreaCloseDate: expectedLatestCloseDate,
+        rule: "For Korea close data, this MCP estimates the latest available regular-session close as today after 16:00 KST, otherwise the previous weekday; weekends roll back to Friday. Korean public holidays are not modeled.",
+        koreanIndexItems: datedKoreanItems,
+        payloadItemDates: mixedItemDates,
+        warnings,
+      },
+    },
+  };
 }
 
 export async function searchStock(query: string, limit = 8): Promise<RichgoResponse> {

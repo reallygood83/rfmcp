@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "MCP server for public Richgo Finance data",
   "main": "dist/index.js",
+  "type": "module",
   "bin": {
     "richgo-finance-mcp": "dist/index.js"
   },
@@ -16,7 +17,8 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "prepack": "npm run build"
   },
   "keywords": [
     "mcp",
@@ -27,7 +29,20 @@
   ],
   "author": "reallygood83",
   "license": "MIT",
-  "type": "module",
+  "homepage": "https://github.com/reallygood83/rfmcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/reallygood83/rfmcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/reallygood83/rfmcp/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.4.3"

@@ -3,6 +3,7 @@ import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import {
+  annotateMarketTickerFreshness,
   buildPortfolio,
   getStockDetail,
   getConsensusPicks,
@@ -287,10 +288,10 @@ server.registerTool(
   {
     title: "Get Richgo market ticker snapshot",
     description:
-      "Fetch headline market ticker values from the refreshed Richgo start/market page, such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices.",
+      "Fetch headline market ticker values from the refreshed Richgo start/market page, such as KOSPI, KOSDAQ, USD/KRW, WTI, and US indices. The response includes freshness metadata and warnings when Korean index dates look stale.",
     inputSchema: z.object({}),
   },
-  async () => jsonText(withNotice(await richgoGet("/api/market/ticker"))),
+  async () => jsonText(withNotice(annotateMarketTickerFreshness(await richgoGet("/api/market/ticker")))),
 );
 
 const marketSchema = z
@@ -409,7 +410,7 @@ server.registerTool(
           globalCompare: globalCompare.url,
         },
         data: {
-          ticker: ticker.data,
+          ticker: annotateMarketTickerFreshness(ticker).data,
           scoreHistory: scoreHistory.data,
           investorTrend: investorTrend.data,
           valuationHistory: valuationHistory.data,

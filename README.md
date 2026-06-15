@@ -23,7 +23,7 @@ dashboard, and Korea export-data screens from an assistant.
 - `richgo_get_exports_overview`: Korea export overview, monthly export/import/trade balance history, sector-stock mappings, and export/employment momentum.
 - `richgo_get_exports_nations`: country-level export/import series and trade balances.
 - `richgo_get_exports_region_ranking`: regional export rankings and change rates.
-- `richgo_get_market_ticker`: headline market ticker snapshot.
+- `richgo_get_market_ticker`: headline market ticker snapshot, with freshness metadata for Korean index dates.
 - `richgo_get_market_score_history`: market environment score history.
 - `richgo_get_market_investor_trend`: foreign/institution/pension/individual investor flow trends.
 - `richgo_get_market_valuation_history`: market PER/PBR valuation history.
@@ -39,6 +39,30 @@ dashboard, and Korea export-data screens from an assistant.
 - `richgo_service_catalog`: list exposed services.
 
 ## Install
+
+### Easiest: npx
+
+After this package is published to npm, you can run it directly with `npx`.
+Add this to your MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "richgo-finance": {
+      "command": "npx",
+      "args": ["-y", "richgo-finance-mcp"]
+    }
+  }
+}
+```
+
+Restart your MCP client, then ask naturally:
+
+```text
+셀트리온 리치고 데이터로 분석해줘
+```
+
+### Developer install
 
 ```bash
 git clone https://github.com/reallygood83/rfmcp.git
@@ -62,7 +86,7 @@ npm run build
 npm start
 ```
 
-## Codex or Claude MCP config
+## Codex or Claude MCP config for local clone
 
 ```json
 {
@@ -110,6 +134,20 @@ intended natural-language routes:
 | `500만원 포트폴리오`, `몇 주씩 살까?`, `예산으로 전략 짜줘` | `richgo_build_portfolio` | Builds an integer-share portfolio with cash balance and risks. |
 | `초보자용`, `질문하면서 도와줘`, `마법사 시작` | `richgo_guided_portfolio` | Uses form elicitation when supported, then builds the portfolio. |
 | `Obsidian에 저장`, `볼트에 보고서로 저장` | `richgo_save_obsidian_report` | Saves only when a vault path is provided or configured privately. |
+
+### Market ticker freshness
+
+`richgo_get_market_ticker` and the ticker section inside
+`richgo_get_market_dashboard` add a `freshness` object. Check it before writing
+KOSPI/KOSDAQ values as "current" market levels.
+
+- `status: "verify_before_current_use"` means the Korean index ticker date is
+  older than the estimated latest Korea regular-session close.
+- `expectedLatestKoreaCloseDate` is estimated in Asia/Seoul time: after 16:00
+  KST on weekdays it expects today's close; before then it expects the previous
+  weekday; weekends roll back to Friday.
+- Korean public holidays are not modeled, so treat the warning as a guardrail,
+  not as an exchange-calendar substitute.
 
 ## Optional Slash Command
 
